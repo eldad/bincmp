@@ -1,7 +1,14 @@
 use std::{fs::File, io::{Read, Write, stdout}};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use tabwriter::TabWriter;
+
+#[derive(ValueEnum, Clone, Debug)]
+enum ValueOutputFormat {
+    Hex,
+    Decimal,
+    Both,
+}
 
 /// Compare binary files
 #[derive(Parser, Debug)]
@@ -12,6 +19,9 @@ struct Args {
 
     #[arg()]
     file2: String,
+
+    #[arg(short, long, default_value = "both")]
+    format: ValueOutputFormat,
 }
 
 const BUFFER_SIZE: usize = 1024;
@@ -27,7 +37,11 @@ fn main() -> eyre::Result<()> {
 
     let mut offset = 0;
     let mut tw = TabWriter::new(stdout()).padding(5).alignment(tabwriter::Alignment::Right);
-    writeln!(tw, "OFFSET\tHex\tFILE1\tHex\tFILE2\tHex\t")?;
+
+    match &args.format {
+        ValueOutputFormat::Hex | ValueOutputFormat::Decimal => writeln!(tw, "OFFSET\tFILE1\tFILE2\t")?,
+        ValueOutputFormat::Both => writeln!(tw, "OFFSET\tHex\tFILE1\tHex\tFILE2\tHex\t")?,
+    }
 
     loop {
         let n1 = f1.read(&mut buffer1)?;
@@ -36,7 +50,7 @@ fn main() -> eyre::Result<()> {
         let n = std::cmp::min(n1, n2);
 
         if n != 0 {
-            compare_buffers(&mut tw,&buffer1[..n], &buffer2[..n], offset)?;
+            compare_buffers(&mut tw,&buffer1[..n], &buffer2[..n], offset, &args.format)?;
         }
 
         // EOF
@@ -57,13 +71,17 @@ fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn compare_buffers<T: Write>(w: &mut T, buffer1: &[u8], buffer2: &[u8], buffer_offset: usize) -> eyre::Result<()> {
+fn compare_buffers<T: Write>(w: &mut T, buffer1: &[u8], buffer2: &[u8], buffer_offset: usize, format: &ValueOutputFormat) -> eyre::Result<()> {
     for i in 0..buffer1.len() {
         let v1 = buffer1[i];
         let v2 = buffer2[i];
         let offset = buffer_offset + i;
         if v1 != v2 {
-            writeln!(w, "{}\t{:x}\t{}\t{:x}\t{}\t{:x}\t", offset, offset, v1, v1, v2, v2)?;
+            match format {
+                ValueOutputFormat::Hex => writeln!(w, "{:x}\t{:x}\t{:x}\t", offset, v1, v2)?,
+                ValueOutputFormat::Decimal => writeln!(w, "{}\t{}\t{}\t", offset, v1, v2)?,
+                ValueOutputFormat::Both => writeln!(w, "{}\t{:x}\t{}\t{:x}\t{}\t{:x}\t", offset, offset, v1, v1, v2, v2)?,
+            }
         }
     }
     Ok(())
