@@ -18,8 +18,8 @@ const BUFFER_SIZE: usize = 1024;
 fn main() -> eyre::Result<()> {
     let args = Args::parse();
 
-    let mut f1 = File::open(args.file1)?;
-    let mut f2 = File::open(args.file2)?;
+    let mut f1 = File::open(&args.file1)?;
+    let mut f2 = File::open(&args.file2)?;
 
     let mut buffer1 = [0u8; BUFFER_SIZE];
     let mut buffer2 = [0u8; BUFFER_SIZE];
@@ -32,19 +32,17 @@ fn main() -> eyre::Result<()> {
 
         let n = std::cmp::min(n1, n2);
 
-        if n1 != n2 {
-            eprintln!("one of the files ended prematurely (n1 {} n2 {})", n1, n2);
+        if n != 0 {
+            compare_buffers(&buffer1[..n], &buffer2[..n], offset);
         }
-
-        // EOF with empty buffer
-        if n == 0 {
-            break;
-        }
-
-        compare_buffers(&buffer1[..n], &buffer2[..n], offset);
 
         // EOF
         if n < BUFFER_SIZE {
+            match n1.cmp(&n2) {
+                std::cmp::Ordering::Less => eprintln!("NOTE: The second file ({}) is larger than the first file ({}).", args.file2, args.file1),
+                std::cmp::Ordering::Greater => eprintln!("NOTE: The first file ({}) is larger than the second file ({}).", args.file1, args.file2),
+                std::cmp::Ordering::Equal => (),
+            };
             break;
         }
 
