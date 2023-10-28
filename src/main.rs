@@ -7,7 +7,8 @@ use tabwriter::TabWriter;
 enum ValueOutputFormat {
     Hex,
     Decimal,
-    Both,
+    Binary,
+    Combined,
 }
 
 /// Compare binary files
@@ -39,8 +40,8 @@ fn main() -> eyre::Result<()> {
     let mut tw = TabWriter::new(stdout()).padding(5).alignment(tabwriter::Alignment::Right);
 
     match &args.format {
-        ValueOutputFormat::Hex | ValueOutputFormat::Decimal => writeln!(tw, "OFFSET\tFILE1\tFILE2\t")?,
-        ValueOutputFormat::Both => writeln!(tw, "OFFSET\tHex\tFILE1\tHex\tFILE2\tHex\t")?,
+        ValueOutputFormat::Combined => writeln!(tw, "OFFSET\tHex\tFILE1\tHex\tFILE2\tHex\t")?,
+        _ => writeln!(tw, "OFFSET\tFILE1\tFILE2\t")?,
     }
 
     loop {
@@ -78,9 +79,10 @@ fn compare_buffers<T: Write>(w: &mut T, buffer1: &[u8], buffer2: &[u8], buffer_o
         let offset = buffer_offset + i;
         if v1 != v2 {
             match format {
+                ValueOutputFormat::Binary => writeln!(w, "{:x}\t{:08b}\t{:08b}\t", offset, v1, v2)?,
                 ValueOutputFormat::Hex => writeln!(w, "{:x}\t{:x}\t{:x}\t", offset, v1, v2)?,
                 ValueOutputFormat::Decimal => writeln!(w, "{}\t{}\t{}\t", offset, v1, v2)?,
-                ValueOutputFormat::Both => writeln!(w, "{}\t{:x}\t{}\t{:x}\t{}\t{:x}\t", offset, offset, v1, v1, v2, v2)?,
+                ValueOutputFormat::Combined => writeln!(w, "{}\t{:x}\t{}\t{:x}\t{}\t{:x}\t", offset, offset, v1, v1, v2, v2)?,
             }
         }
     }
