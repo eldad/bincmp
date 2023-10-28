@@ -1,6 +1,7 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::{Read, Write, stdout}};
 
 use clap::Parser;
+use tabwriter::TabWriter;
 
 /// Compare binary files
 #[derive(Parser, Debug)]
@@ -25,6 +26,8 @@ fn main() -> eyre::Result<()> {
     let mut buffer2 = [0u8; BUFFER_SIZE];
 
     let mut offset = 0;
+    let mut tw = TabWriter::new(stdout()).padding(5).alignment(tabwriter::Alignment::Right);
+    writeln!(tw, "OFFSET\tHex\tFILE1\tHex\tFILE2\tHex\t")?;
 
     loop {
         let n1 = f1.read(&mut buffer1)?;
@@ -33,7 +36,7 @@ fn main() -> eyre::Result<()> {
         let n = std::cmp::min(n1, n2);
 
         if n != 0 {
-            compare_buffers(&buffer1[..n], &buffer2[..n], offset);
+            compare_buffers(&mut tw,&buffer1[..n], &buffer2[..n], offset)?;
         }
 
         // EOF
@@ -49,16 +52,19 @@ fn main() -> eyre::Result<()> {
         offset += BUFFER_SIZE;
     }
 
+    tw.flush()?;
+
     Ok(())
 }
 
-fn compare_buffers(buffer1: &[u8], buffer2: &[u8], buffer_offset: usize) {
+fn compare_buffers<T: Write>(w: &mut T, buffer1: &[u8], buffer2: &[u8], buffer_offset: usize) -> eyre::Result<()> {
     for i in 0..buffer1.len() {
         let v1 = buffer1[i];
         let v2 = buffer2[i];
         let offset = buffer_offset + i;
         if v1 != v2 {
-            println!("Offset {} file1 {} file2 {}", offset, v1, v2);
+            writeln!(w, "{}\t{:x}\t{}\t{:x}\t{}\t{:x}\t", offset, offset, v1, v1, v2, v2)?;
         }
     }
+    Ok(())
 }
