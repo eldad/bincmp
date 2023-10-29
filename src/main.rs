@@ -21,8 +21,12 @@ struct Args {
     #[arg()]
     file2: String,
 
-    #[arg(short, long, default_value = "both")]
+    #[arg(short, long, default_value = "hex")]
     format: ValueOutputFormat,
+
+    #[arg(short, long)]
+    /// Search only for a single bit flip
+    single_bitflip_only: bool,
 }
 
 const BUFFER_SIZE: usize = 1024;
@@ -51,7 +55,7 @@ fn main() -> eyre::Result<()> {
         let n = std::cmp::min(n1, n2);
 
         if n != 0 {
-            compare_buffers(&mut tw,&buffer1[..n], &buffer2[..n], offset, &args.format)?;
+            compare_buffers(&mut tw,&buffer1[..n], &buffer2[..n], offset, &args.format, args.single_bitflip_only)?;
         }
 
         // EOF
@@ -72,12 +76,14 @@ fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn compare_buffers<T: Write>(w: &mut T, buffer1: &[u8], buffer2: &[u8], buffer_offset: usize, format: &ValueOutputFormat) -> eyre::Result<()> {
+fn compare_buffers<T: Write>(w: &mut T, buffer1: &[u8], buffer2: &[u8], buffer_offset: usize, format: &ValueOutputFormat, bitflip_only: bool) -> eyre::Result<()> {
     for i in 0..buffer1.len() {
         let v1 = buffer1[i];
         let v2 = buffer2[i];
         let offset = buffer_offset + i;
-        if v1 != v2 {
+
+        let is_diff = bitflip_only && is_bitflipped(v1,v2) || !bitflip_only && (v1 != v2);
+        if is_diff {
             match format {
                 ValueOutputFormat::Binary => writeln!(w, "{:x}\t{:08b}\t{:08b}\t", offset, v1, v2)?,
                 ValueOutputFormat::Hex => writeln!(w, "{:x}\t{:x}\t{:x}\t", offset, v1, v2)?,
@@ -87,4 +93,12 @@ fn compare_buffers<T: Write>(w: &mut T, buffer1: &[u8], buffer2: &[u8], buffer_o
         }
     }
     Ok(())
+}
+
+fn is_bitflipped(v1: u8, v2: u8) -> bool {
+    let v = v1 ^ v2;
+    if v == 0 {
+        return false;
+    }
+    v & (v - 1) == 0
 }
