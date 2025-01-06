@@ -1,15 +1,17 @@
 # bincmp
+
 bincmp: analyze difference between binaries - Binary comparison/diffing tool
 
 # usage
+
 ```
 Compare binary files
 
 Usage: bincmp [OPTIONS] <FILE1> <FILE2>
 
 Arguments:
-  <FILE1>  
-  <FILE2>  
+  <FILE1>
+  <FILE2>
 
 Options:
   -f, --format <FORMAT>      [default: hex] [possible values: hex, decimal, binary, combined]
